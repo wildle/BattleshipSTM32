@@ -886,5 +886,5 @@ if __name__ == "__main__":
         trace_level = 2 # INFO
     logging.basicConfig(level=trace_level*10)   # c.f. python default logging levels
 
-    s = serial.serial_for_url(ser, 115200, timeout=2)
+    s = serial.serial_for_url(ser, 9600, timeout=2)  # change the baudrate from 115200 to 9600
     main(s, is_player1, single_game, play_level, official_result)
