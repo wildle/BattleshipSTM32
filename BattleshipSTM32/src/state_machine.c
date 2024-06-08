@@ -1,6 +1,8 @@
 #include "state_machine.h"
 #include "uart.h"
 #include <stdio.h>
+#include <stdlib.h> // Für srand, rand
+#include <time.h>   // Für time
 #include "stm32f0xx.h"
 
 #define FIELD_SIZE 10
