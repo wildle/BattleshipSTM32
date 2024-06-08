@@ -24,7 +24,6 @@ static int field[FIELD_SIZE][FIELD_SIZE];
 static char checksum[11];
 
 void StateMachine_Init(void) {
-    // Check if button is pressed
     if ((GPIOC->IDR & GPIO_IDR_13) == 0) {
         isPlayer1 = 1;
     } else {
@@ -74,19 +73,16 @@ void StateMachine_Run(void) {
 
     switch (currentState) {
         case INIT:
-            // Initialization code
             UART_SendString("Initializing...\n");
             currentState = (isPlayer1) ? START_S1 : START_S2;
             break;
         case START_S1:
-            // Code for START_S1 state
-            UART_SendString("START12345\n"); // Example start message
+            UART_SendString("START12345\n"); // Beispiel-Startnachricht
             generateRandomField();
             calculateChecksum();
             currentState = FIELD;
             break;
         case START_S2:
-            // Code for START_S2 state
             UART_SendString("Waiting for START...\n");
             if (UART_GetChar() == 'S') {
                 UART_SendString("Received START\n");
@@ -96,13 +92,11 @@ void StateMachine_Run(void) {
             }
             break;
         case FIELD:
-            // Code for FIELD state
             snprintf(buffer, sizeof(buffer), "CS%s\n", checksum);
             UART_SendString(buffer);
             currentState = PLAY;
             break;
         case PLAY:
-            // Code for PLAY state
             UART_SendString("Playing...\n");
             if (UART_GetChar() == 'B') {
                 for (int i = 0; i < 4; i++) {
@@ -121,17 +115,14 @@ void StateMachine_Run(void) {
             }
             break;
         case RESULT:
-            // Code for RESULT state
             UART_SendString("RESULT\n");
             currentState = GAMEEND;
             break;
         case GAMEEND:
-            // Code for GAMEEND state
             UART_SendString("GAMEEND\n");
             currentState = INIT;
             break;
         case STATE_ERROR:
-            // Code for ERROR state
             UART_SendString("Error occurred!\n");
             currentState = INIT;
             break;
