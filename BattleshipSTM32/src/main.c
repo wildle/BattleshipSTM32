@@ -22,6 +22,7 @@ int main(void) {
     while (1) {
         // Execute State Machine
         StateMachine_Run();
+        for (volatile int i = 0; i < 100000; i++);  // Simple delay to prevent spamming messages
     }
 }
 
@@ -37,5 +38,17 @@ void Button_Init(void) {
 }
 
 void SystemClock_Config(void) {
-    // Implementiere hier die System Clock Konfiguration
+    // Configure the system clock to 48 MHz
+    RCC->CR |= RCC_CR_HSEON; // Enable HSE
+    while (!(RCC->CR & RCC_CR_HSERDY)); // Wait until HSE is ready
+
+    // Configure PLL
+    RCC->CFGR |= RCC_CFGR_PLLSRC_HSE_PREDIV; // HSE as PLL source
+    RCC->CFGR |= RCC_CFGR_PLLMUL6; // PLL multiplier 6
+
+    RCC->CR |= RCC_CR_PLLON; // Enable PLL
+    while (!(RCC->CR & RCC_CR_PLLRDY)); // Wait until PLL is ready
+
+    RCC->CFGR |= RCC_CFGR_SW_PLL; // Select PLL as system clock source
+    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL); // Wait until PLL is system clock source
 }
