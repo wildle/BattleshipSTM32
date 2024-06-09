@@ -42,6 +42,6 @@ char UART_GetChar(void) {
 void USART2_IRQHandler(void) {
     if (USART2->ISR & USART_ISR_RXNE) {
         char c = (char)(USART2->RDR); // Read received data
-        // Process received character (add your code here)
+        UART_SendChar(c); // Echo received character
     }
 }
