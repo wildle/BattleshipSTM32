@@ -1,4 +1,5 @@
 #include "uart.h"
+#include "state_machine.h"
 
 void UART_Init(void) {
     // Enable the peripheral clock of GPIOA
@@ -41,10 +42,18 @@ char UART_GetChar(void) {
 // USART2 interrupt handler
 void USART2_IRQHandler(void) {
     if (USART2->ISR & USART_ISR_RXNE) {
-        char c = (char)(USART2->RDR); // Read received data
-        UART_SendChar(c); // Echo received character
+        static char rx_buffer[100];
+        static int rx_index = 0;
 
-        // Debug: Toggle an LED or send a debug message
-        // GPIOA->ODR ^= GPIO_ODR_5; // Toggle PA5 (assuming an LED is connected)
+        char c = (char)(USART2->RDR); // Read received data
+        if (c == '\n' || rx_index >= sizeof(rx_buffer) - 1) {
+            rx_buffer[rx_index] = '\0';
+            handle_received_message(rx_buffer);
+            rx_index = 0;
+        } else {
+            rx_buffer[rx_index++] = c;
+        }
+
+        UART_SendChar(c); // Echo received character for debugging
     }
 }
