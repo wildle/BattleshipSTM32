@@ -14,25 +14,26 @@ void StateMachine_Run(void) {
         case INIT:
             // Initialization logic
             UART_SendString("State: INIT\n");
-            currentState = START_S1; // Example transition
+            // Transition to START_S1 for now; this should be based on an actual condition
+            currentState = START_S1;
             break;
 
         case START_S1:
             // Logic for START_S1 state
             UART_SendString("State: START_S1\n");
             // Wait for some condition or event
-            // Example: If a start button is pressed or a specific UART message is received
-            // For now, transition to next state for testing purposes
-            currentState = PLAY;
+            // For now, stay in this state for testing purposes
+            // Uncomment the following line to move to the next state for testing
+            // currentState = PLAY;
             break;
 
         case START_S2:
             // Logic for START_S2 state
             UART_SendString("State: START_S2\n");
             // Wait for some condition or event
-            // Example: If a specific UART message is received
-            // For now, transition to next state for testing purposes
-            currentState = PLAY;
+            // For now, stay in this state for testing purposes
+            // Uncomment the following line to move to the next state for testing
+            // currentState = PLAY;
             break;
 
         case FIELD:
@@ -44,8 +45,9 @@ void StateMachine_Run(void) {
         case PLAY:
             // Logic for PLAY state
             UART_SendString("State: PLAY\n");
-            // For now, transition to next state for testing purposes
-            currentState = RESULT;
+            // For now, stay in this state for testing purposes
+            // Uncomment the following line to move to the next state for testing
+            // currentState = RESULT;
             break;
 
         case RESULT:
@@ -58,8 +60,9 @@ void StateMachine_Run(void) {
         case GAMEEND:
             // Logic for GAMEEND state
             UART_SendString("State: GAMEEND\n");
-            // For now, transition back to INIT for testing purposes
-            currentState = INIT;
+            // For now, stay in this state for testing purposes
+            // Uncomment the following line to move back to INIT for testing
+            // currentState = INIT;
             break;
 
         case ERROR_STATE: // Use the renamed state
