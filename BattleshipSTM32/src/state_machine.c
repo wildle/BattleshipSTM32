@@ -20,36 +20,46 @@ void StateMachine_Run(void) {
         case START_S1:
             // Logic for START_S1 state
             UART_SendString("State: START_S1\n");
-            currentState = PLAY; // Example transition
+            // Wait for some condition or event
+            // Example: If a start button is pressed or a specific UART message is received
+            // For now, transition to next state for testing purposes
+            currentState = PLAY;
             break;
 
         case START_S2:
             // Logic for START_S2 state
             UART_SendString("State: START_S2\n");
-            currentState = PLAY; // Example transition
+            // Wait for some condition or event
+            // Example: If a specific UART message is received
+            // For now, transition to next state for testing purposes
+            currentState = PLAY;
             break;
 
         case FIELD:
             // Logic for FIELD state
             UART_SendString("State: FIELD\n");
+            // Wait for field setup to complete
             break;
 
         case PLAY:
             // Logic for PLAY state
             UART_SendString("State: PLAY\n");
-            currentState = RESULT; // Example transition
+            // For now, transition to next state for testing purposes
+            currentState = RESULT;
             break;
 
         case RESULT:
             // Logic for RESULT state
             UART_SendString("State: RESULT\n");
-            currentState = GAMEEND; // Example transition
+            // Display result and wait for some condition or event to reset
+            currentState = GAMEEND;
             break;
 
         case GAMEEND:
             // Logic for GAMEEND state
             UART_SendString("State: GAMEEND\n");
-            currentState = INIT; // Example transition
+            // For now, transition back to INIT for testing purposes
+            currentState = INIT;
             break;
 
         case ERROR_STATE: // Use the renamed state
