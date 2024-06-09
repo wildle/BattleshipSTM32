@@ -116,6 +116,8 @@ void StateMachine_Run(void) {
     
     // Check for state transitions based on conditions
     if (currentState == START_S1 && start_condition_met) {
+        currentState = FIELD; // Set to FIELD to process next stage before PLAY
+    } else if (currentState == FIELD && play_condition_met) {
         currentState = PLAY;
     } else if (currentState == PLAY && play_condition_met) {
         currentState = RESULT;
