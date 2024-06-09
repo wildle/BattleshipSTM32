@@ -1,4 +1,4 @@
-#include "epl_clock.h"
+#include "mci_clock.h"
 
 /**
   * @brief  System Clock Configuration
