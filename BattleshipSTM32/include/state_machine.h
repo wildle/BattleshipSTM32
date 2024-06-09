@@ -19,5 +19,6 @@ typedef enum {
 void StateMachine_Init(void);
 void StateMachine_Run(void);
 void handle_button_press(void);
+void handle_received_message(const char *message); // Funktion deklarieren
 
 #endif // STATE_MACHINE_H
