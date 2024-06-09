@@ -1,5 +1,7 @@
 #include "button.h"
-#include "state_machine.h"  // Include state_machine.h to access START_S1 and StateMachine_SetState
+#include "state_machine.h"
+#include "uart.h" // Include UART for debugging
+#include "stm32f0xx.h"
 
 void Button_Init(void) {
     // Enable clock for GPIOC (B1 is connected to PC13)
@@ -20,12 +22,21 @@ void Button_Init(void) {
     NVIC_EnableIRQ(EXTI4_15_IRQn);
 }
 
+// Simple debouncing function
+void debounce(void) {
+    for (volatile int i = 0; i < 100000; i++);
+}
+
 // EXTI line 13 interrupt handler (for PC13)
 void EXTI4_15_IRQHandler(void) {
     if (EXTI->PR & EXTI_PR_PR13) {
+        debounce(); // Debounce the button press
         EXTI->PR |= EXTI_PR_PR13; // Clear the interrupt flag
 
-        // Call the function to change the state
-        StateMachine_SetState(START_S1);
+        if (!(GPIOC->IDR & GPIO_IDR_13)) { // Check if button is still pressed
+            UART_SendString("Button Pressed!\n"); // Debugging message
+            // Call the function to change the state
+            StateMachine_SetState(START_S1);
+        }
     }
 }
