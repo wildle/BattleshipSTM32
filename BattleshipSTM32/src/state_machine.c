@@ -5,6 +5,8 @@
 
 // Initial State
 static State currentState = INIT;
+static int start_condition_met = 0;
+static int play_condition_met = 0;
 
 void send_start_message(void) {
     UART_SendString("START12345\n"); // Beispiel Matrikelnummer
@@ -26,6 +28,7 @@ void handle_received_message(const char *message) {
     if (strncmp(message, "START", 5) == 0) {
         // Handle START message
         UART_SendString("Received START message\n");
+        start_condition_met = 1;
     } else if (strncmp(message, "CS", 2) == 0) {
         // Handle CS message
         UART_SendString("Received CS message\n");
@@ -36,7 +39,6 @@ void handle_received_message(const char *message) {
     // Add more handlers as needed
 }
 
-// Initial State
 void StateMachine_Init(void) {
     // Initial setup if necessary
     currentState = INIT;
@@ -54,15 +56,17 @@ void StateMachine_Run(void) {
         case START_S1:
             // Logic for START_S1 state
             UART_SendString("State: START_S1\n");
-            // Wait for some condition or event
-            currentState = PLAY; // Transition for testing
+            if (start_condition_met) {
+                currentState = PLAY;
+            }
             break;
 
         case START_S2:
             // Logic for START_S2 state
             UART_SendString("State: START_S2\n");
-            // Wait for some condition or event
-            currentState = PLAY; // Transition for testing
+            if (start_condition_met) {
+                currentState = PLAY;
+            }
             break;
 
         case FIELD:
@@ -75,7 +79,9 @@ void StateMachine_Run(void) {
             // Logic for PLAY state
             UART_SendString("State: PLAY\n");
             // For now, transition to next state for testing purposes
-            currentState = RESULT;
+            if (play_condition_met) {
+                currentState = RESULT;
+            }
             break;
 
         case RESULT:
