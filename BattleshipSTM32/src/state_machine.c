@@ -83,7 +83,10 @@ void StateMachine_Run(void) {
 
         case GAMEEND:
             UART_SendString("State: GAMEEND\n");
-            currentState = INIT; // Transition for testing purposes
+            // Hier sollte eine Bedingung für den Neustart des Spiels überprüft werden
+            if (startButtonPressed) { // Beispiel für eine Bedingung
+                currentState = INIT;
+            }
             break;
 
         case ERROR_STATE:
