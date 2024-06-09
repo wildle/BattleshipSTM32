@@ -2,7 +2,7 @@
 #include "state_machine.h"
 
 void UART_Init(void) {
-    RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+    RCC->AHBENR |= RCC_AHBENR_GPIOCEN;
     GPIOA->MODER |= (0x2 << GPIO_MODER_MODER2_Pos) | (0x2 << GPIO_MODER_MODER3_Pos);
     GPIOA->AFR[0] |= (0x1 << GPIO_AFRL_AFRL2_Pos) | (0x1 << GPIO_AFRL_AFRL3_Pos);
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
