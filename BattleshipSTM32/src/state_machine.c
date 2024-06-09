@@ -32,6 +32,7 @@ void handle_received_message(const char *message) {
     } else if (strncmp(message, "CS", 2) == 0) {
         // Handle CS message
         UART_SendString("Received CS message\n");
+        play_condition_met = 1;
     } else if (strncmp(message, "BOOM", 4) == 0) {
         // Handle BOOM message
         UART_SendString("Received BOOM message\n");
@@ -42,6 +43,8 @@ void handle_received_message(const char *message) {
 void StateMachine_Init(void) {
     // Initial setup if necessary
     currentState = INIT;
+    start_condition_met = 0;
+    play_condition_met = 0;
 }
 
 void StateMachine_Run(void) {
