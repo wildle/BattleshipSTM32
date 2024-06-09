@@ -20,6 +20,8 @@ int main(void) {
     while (1) {
         // Run the state machine
         StateMachine_Run();
+        // Add a small delay to allow UART interrupts to be handled
+        for (volatile int i = 0; i < 10000; ++i);
     }
 }
 
