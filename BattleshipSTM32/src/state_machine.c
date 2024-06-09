@@ -5,10 +5,7 @@
 
 // Initial State
 static State currentState = INIT;
-static int start_condition_met = 0;
-static int play_condition_met = 0;
-static int message_received = 0;
-static char received_message[100];
+static int startButtonPressed = 0; // Beispielbedingung
 
 void send_start_message(void) {
     UART_SendString("START12345\n"); // Beispiel Matrikelnummer
@@ -27,107 +24,81 @@ void send_boom_message(int x, int y) {
 }
 
 void handle_received_message(const char *message) {
-    strncpy(received_message, message, sizeof(received_message) - 1);
-    received_message[sizeof(received_message) - 1] = '\0';
-    message_received = 1;
-}
-
-void process_message(void) {
-    if (strncmp(received_message, "START", 5) == 0) {
+    if (strncmp(message, "START", 5) == 0) {
         // Handle START message
-        UART_SendString("Processed START message\n");
-        start_condition_met = 1;
-    } else if (strncmp(received_message, "CS", 2) == 0) {
+        UART_SendString("Received START message\n");
+    } else if (strncmp(message, "CS", 2) == 0) {
         // Handle CS message
-        UART_SendString("Processed CS message\n");
-        play_condition_met = 1;
-    } else if (strncmp(received_message, "BOOM", 4) == 0) {
+        UART_SendString("Received CS message\n");
+    } else if (strncmp(message, "BOOM", 4) == 0) {
         // Handle BOOM message
-        UART_SendString("Processed BOOM message\n");
+        UART_SendString("Received BOOM message\n");
     }
-    message_received = 0;
+    // Add more handlers as needed
 }
 
 void StateMachine_Init(void) {
     // Initial setup if necessary
     currentState = INIT;
-    start_condition_met = 0;
-    play_condition_met = 0;
-    message_received = 0;
 }
 
 void StateMachine_Run(void) {
-    if (message_received) {
-        process_message();
-    }
-
     switch (currentState) {
         case INIT:
-            // Initialization logic
             UART_SendString("State: INIT\n");
-            send_start_message();
-            currentState = START_S1;
+            if (startButtonPressed) {
+                send_start_message();
+                currentState = START_S1;
+            }
             break;
 
         case START_S1:
-            // Logic for START_S1 state
             UART_SendString("State: START_S1\n");
-            if (start_condition_met) {
-                currentState = FIELD; // Set to FIELD to process next stage before PLAY
-                start_condition_met = 0; // Reset condition
-                UART_SendString("Transition to FIELD\n");
-            }
+            // Transition to PLAY for testing purposes
+            currentState = PLAY;
+            break;
+
+        case START_S2:
+            UART_SendString("State: START_S2\n");
+            // Transition to PLAY for testing purposes
+            currentState = PLAY;
             break;
 
         case FIELD:
-            // Logic for FIELD state
             UART_SendString("State: FIELD\n");
-            if (play_condition_met) {
-                currentState = PLAY;
-                play_condition_met = 0; // Reset condition
-                UART_SendString("Transition to PLAY\n");
-            }
+            // Transition to PLAY for testing purposes
+            currentState = PLAY;
             break;
 
         case PLAY:
-            // Logic for PLAY state
             UART_SendString("State: PLAY\n");
-            if (play_condition_met) {
-                currentState = RESULT;
-                play_condition_met = 0; // Reset condition
-                UART_SendString("Transition to RESULT\n");
-            }
+            // Transition to RESULT for testing purposes
+            currentState = RESULT;
             break;
 
         case RESULT:
-            // Logic for RESULT state
             UART_SendString("State: RESULT\n");
             currentState = GAMEEND;
             break;
 
         case GAMEEND:
-            // Logic for GAMEEND state
             UART_SendString("State: GAMEEND\n");
-            currentState = INIT;
+            currentState = INIT; // Transition for testing purposes
             break;
 
         case ERROR_STATE:
-            // Logic for ERROR state
             UART_SendString("State: ERROR\n");
             break;
 
         case UNEXPECTED:
-            // Logic for UNEXPECTED state
             UART_SendString("State: UNEXPECTED\n");
             break;
 
         case MYBAD:
-            // Logic for MYBAD state
             UART_SendString("State: MYBAD\n");
             break;
 
         default:
-            // Default case
             UART_SendString("State: UNKNOWN\n");
             break;
     }
