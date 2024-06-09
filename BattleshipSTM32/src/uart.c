@@ -1,13 +1,23 @@
 #include "uart.h"
-#include "state_machine.h"
 
 void UART_Init(void) {
-    RCC->AHBENR |= RCC_AHBENR_GPIOCEN;
-    GPIOA->MODER |= (0x2 << GPIO_MODER_MODER2_Pos) | (0x2 << GPIO_MODER_MODER3_Pos);
-    GPIOA->AFR[0] |= (0x1 << GPIO_AFRL_AFRL2_Pos) | (0x1 << GPIO_AFRL_AFRL3_Pos);
+    // Enable the peripheral clock of GPIOA
+    RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+
+    // PA2 and PA3 for USART2
+    GPIOA->MODER |= (0x2 << GPIO_MODER_MODER2_Pos) | (0x2 << GPIO_MODER_MODER3_Pos);  // Alternate function mode
+    GPIOA->AFR[0] |= (0x1 << GPIO_AFRL_AFRL2_Pos) | (0x1 << GPIO_AFRL_AFRL3_Pos);    // AF1 for USART2
+
+    // Enable the peripheral clock of USART2
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
-    USART2->BRR = (SystemCoreClock / 9600);
+
+    // Configure USART2: 
+    // - Baud rate: 9600
+    // - 8 data bits, 1 stop bit, no parity, no flow control
+    USART2->BRR = (SystemCoreClock / 9600);   // Assuming 48MHz PCLK
     USART2->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE | USART_CR1_RXNEIE;
+
+    // Enable USART2 interrupt
     NVIC_SetPriority(USART2_IRQn, 1);
     NVIC_EnableIRQ(USART2_IRQn);
 }
@@ -28,20 +38,10 @@ char UART_GetChar(void) {
     return (char)(USART2->RDR);
 }
 
+// USART2 interrupt handler
 void USART2_IRQHandler(void) {
     if (USART2->ISR & USART_ISR_RXNE) {
-        static char rx_buffer[100];
-        static int rx_index = 0;
-
-        char c = (char)(USART2->RDR);
-        if (c == '\n' || rx_index >= sizeof(rx_buffer) - 1) {
-            rx_buffer[rx_index] = '\0';
-            handle_received_message(rx_buffer);
-            rx_index = 0;
-        } else {
-            rx_buffer[rx_index++] = c;
-        }
-
-        UART_SendChar(c);
+        char c = (char)(USART2->RDR); // Read received data
+        UART_SendChar(c); // Echo received character
     }
 }
