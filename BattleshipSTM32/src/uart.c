@@ -14,7 +14,7 @@ void UART_Init(void) {
     // Configure USART2: 
     // - Baud rate: 9600
     // - 8 data bits, 1 stop bit, no parity, no flow control
-    USART2->BRR = 480000 / 96;   // Assuming 48MHz PCLK
+    USART2->BRR = (SystemCoreClock / 9600);   // Assuming 48MHz PCLK
     USART2->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
 
     // Enable USART2 interrupt
@@ -45,4 +45,3 @@ void USART2_IRQHandler(void) {
         // Process received character (add your code here)
     }
 }
-
