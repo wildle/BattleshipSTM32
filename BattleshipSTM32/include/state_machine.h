@@ -11,12 +11,13 @@ typedef enum {
     PLAY,
     RESULT,
     GAMEEND,
-    ERROR_STATE, // Rename this to avoid conflict
+    ERROR_STATE,
     UNEXPECTED,
     MYBAD
 } State;
 
 void StateMachine_Init(void);
 void StateMachine_Run(void);
+void StateMachine_SetState(State newState); // Function to set state
 
 #endif // STATE_MACHINE_H

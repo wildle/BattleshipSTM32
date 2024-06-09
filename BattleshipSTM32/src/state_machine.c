@@ -1,7 +1,6 @@
 #include "state_machine.h"
 #include "uart.h"
 
-// Initial State
 static State currentState = INIT;
 
 void StateMachine_Init(void) {
@@ -9,66 +8,69 @@ void StateMachine_Init(void) {
     currentState = INIT;
 }
 
+void StateMachine_SetState(State newState) {
+    currentState = newState;
+}
+
 void StateMachine_Run(void) {
     switch (currentState) {
         case INIT:
-            // Initialization logic
             UART_SendString("State: INIT\n");
-            currentState = START_S1; // Example transition
             break;
 
         case START_S1:
-            // Logic for START_S1 state
             UART_SendString("State: START_S1\n");
-            currentState = PLAY; // Example transition
+            // Warte auf den Startbefehl
+            // Bei Empfang des Startbefehls:
+            // if (start_condition) {
+            //    StateMachine_SetState(PLAY);
+            //}
             break;
 
         case START_S2:
-            // Logic for START_S2 state
             UART_SendString("State: START_S2\n");
-            currentState = PLAY; // Example transition
+            // Warte auf den Startbefehl
+            // Bei Empfang des Startbefehls:
+            // if (start_condition) {
+            //    StateMachine_SetState(PLAY);
+            //}
             break;
 
         case FIELD:
-            // Logic for FIELD state
             UART_SendString("State: FIELD\n");
             break;
 
         case PLAY:
-            // Logic for PLAY state
             UART_SendString("State: PLAY\n");
-            currentState = RESULT; // Example transition
+            // Spiel-Logik
+            // if (game_over) {
+            //    StateMachine_SetState(RESULT);
+            //}
             break;
 
         case RESULT:
-            // Logic for RESULT state
             UART_SendString("State: RESULT\n");
-            currentState = GAMEEND; // Example transition
+            StateMachine_SetState(GAMEEND);
             break;
 
         case GAMEEND:
-            // Logic for GAMEEND state
             UART_SendString("State: GAMEEND\n");
-            currentState = INIT; // Example transition
+            StateMachine_SetState(INIT); // Zurück zu INIT für eine neue Runde
             break;
 
-        case ERROR_STATE: // Use the renamed state
-            // Logic for ERROR state
+        case ERROR_STATE:
             UART_SendString("State: ERROR\n");
             break;
 
         case UNEXPECTED:
-            // Logic for UNEXPECTED state
             UART_SendString("State: UNEXPECTED\n");
             break;
 
         case MYBAD:
-            // Logic for MYBAD state
             UART_SendString("State: MYBAD\n");
             break;
 
         default:
-            // Default case
             UART_SendString("State: UNKNOWN\n");
             break;
     }
