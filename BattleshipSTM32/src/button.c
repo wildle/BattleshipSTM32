@@ -1,4 +1,5 @@
 #include "button.h"
+#include "state_machine.h"  // Include state_machine.h to access START_S1 and StateMachine_SetState
 
 void Button_Init(void) {
     // Enable clock for GPIOC (B1 is connected to PC13)
