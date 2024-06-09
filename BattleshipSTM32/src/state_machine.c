@@ -5,7 +5,11 @@
 
 // Initial State
 static State currentState = INIT;
-static int startButtonPressed = 0; // Beispielbedingung
+static int startButtonPressed = 0;
+
+void handle_button_press(void) {
+    startButtonPressed = 1;
+}
 
 void send_start_message(void) {
     UART_SendString("START12345\n"); // Beispiel Matrikelnummer
@@ -25,20 +29,15 @@ void send_boom_message(int x, int y) {
 
 void handle_received_message(const char *message) {
     if (strncmp(message, "START", 5) == 0) {
-        // Handle START message
         UART_SendString("Received START message\n");
     } else if (strncmp(message, "CS", 2) == 0) {
-        // Handle CS message
         UART_SendString("Received CS message\n");
     } else if (strncmp(message, "BOOM", 4) == 0) {
-        // Handle BOOM message
         UART_SendString("Received BOOM message\n");
     }
-    // Add more handlers as needed
 }
 
 void StateMachine_Init(void) {
-    // Initial setup if necessary
     currentState = INIT;
 }
 
@@ -49,31 +48,28 @@ void StateMachine_Run(void) {
             if (startButtonPressed) {
                 send_start_message();
                 currentState = START_S1;
+                startButtonPressed = 0; // Reset button state
             }
             break;
 
         case START_S1:
             UART_SendString("State: START_S1\n");
-            // Transition to PLAY for testing purposes
-            currentState = PLAY;
+            // Wait for START message
             break;
 
         case START_S2:
             UART_SendString("State: START_S2\n");
-            // Transition to PLAY for testing purposes
-            currentState = PLAY;
+            // Wait for CS message
             break;
 
         case FIELD:
             UART_SendString("State: FIELD\n");
-            // Transition to PLAY for testing purposes
-            currentState = PLAY;
+            // Wait for field setup
             break;
 
         case PLAY:
             UART_SendString("State: PLAY\n");
-            // Transition to RESULT for testing purposes
-            currentState = RESULT;
+            // Handle game logic
             break;
 
         case RESULT:
@@ -83,9 +79,9 @@ void StateMachine_Run(void) {
 
         case GAMEEND:
             UART_SendString("State: GAMEEND\n");
-            // Hier sollte eine Bedingung für den Neustart des Spiels überprüft werden
-            if (startButtonPressed) { // Beispiel für eine Bedingung
+            if (startButtonPressed) {
                 currentState = INIT;
+                startButtonPressed = 0; // Reset button state
             }
             break;
 

@@ -3,8 +3,9 @@
 
 #include "stm32f0xx.h"
 #include "uart.h"
+#include "state_machine.h"
 #include "mci_clock.h"
 
-// Define any necessary macros or variables
+void Button_Init(void);
 
 #endif // MAIN_H
