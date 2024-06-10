@@ -43,5 +43,8 @@ void USART2_IRQHandler(void) {
     if (USART2->ISR & USART_ISR_RXNE) {
         char c = (char)(USART2->RDR); // Read received data
         UART_SendChar(c); // Echo received character
+
+        // Debug: Toggle an LED or send a debug message
+        // GPIOA->ODR ^= GPIO_ODR_5; // Toggle PA5 (assuming an LED is connected)
     }
 }
