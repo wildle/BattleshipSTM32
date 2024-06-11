@@ -7,7 +7,7 @@
 #define BUFFER 100
 #define BAUDRATE 9600
 
-// Enum für die Zustände
+// Enum für die State-Zustände
 typedef enum
 {
     INIT,
@@ -26,63 +26,64 @@ typedef enum
     LOOP_EV_SHOT
 } LOOP;
 
-volatile State currentState = INIT;
-volatile LOOP currentLoop = LOOP_DECIDE_STATE;
-volatile int isPlayer1 = 0;
-char rxbuffer[BUFFER] = {0};
-volatile int rx_index = 0;
-int op_cs[10] = {0};
-volatile int def = 0;
-int targetx = 9;
-int targety = 9;
-int op_targetx = 0;
-int op_targety = 0;
-int spielfeld[10][10] = {0};
+volatile State currentState = INIT; // Aktueller Zustand der State-Maschine
+volatile LOOP currentLoop = LOOP_DECIDE_STATE; // Aktueller Zustand der Loop-Maschine
+volatile int isPlayer1 = 0; // Variable zur Bestimmung, ob der Spieler Player 1 ist
+char rxbuffer[BUFFER] = {0}; // Empfangspuffer für Nachrichten
+volatile int rx_index = 0; // Index für den Empfangspuffer
+int op_cs[10] = {0}; // Array zur Speicherung der Gegnerkoordinaten
+volatile int def = 0; // Defensiv-Flag
+int targetx = 9; // Zielkoordinate x
+int targety = 9; // Zielkoordinate y
+int op_targetx = 0; // Gegnerzielkoordinate x
+int op_targety = 0; // Gegnerzielkoordinate y
+int spielfeld[10][10] = {0}; // Spielfeldarray
 
 void Init(void)
 {
-    // Initialization of the system
-    EPL_SystemClock_Config();
-    // Enable GPIOA and USART2 clocks
+    // Initialisierung des Systems
+    EPL_SystemClock_Config(); // Konfiguration des Systemtakts
+    // Aktivierung der GPIOA- und USART2-Takte
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
     RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
     RCC->AHBENR |= RCC_AHBENR_GPIOCEN;
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
-    // Setup GPIOA Mode
+    // GPIOA Modus einrichten
     GPIOA->MODER |= GPIO_MODER_MODER2_1;
     GPIOA->AFR[0] |= 0b0001 << (4 * 2);
-    // Setup GPIOB Mode, set B3, B4, B5 to output
+    // GPIOB Modus einrichten, setze B3, B4, B5 auf Ausgang
     GPIOB->MODER |= GPIO_MODER_MODER3_0;
     GPIOB->MODER |= GPIO_MODER_MODER4_0;
     GPIOB->MODER |= GPIO_MODER_MODER5_0;
-    // Setup B ports for LED push/pull
-    GPIOB->OTYPER &= ~GPIO_OTYPER_OT_3; // BLUE on B3
-    GPIOB->OTYPER &= ~GPIO_OTYPER_OT_4; // GREEN on B4
-    GPIOB->OTYPER &= ~GPIO_OTYPER_OT_5; // RED on B5
-    // Setup GPIOC Mode for Blue button
+    // GPIOB für LED Push/Pull einrichten
+    GPIOB->OTYPER &= ~GPIO_OTYPER_OT_3; // BLUE auf B3
+    GPIOB->OTYPER &= ~GPIO_OTYPER_OT_4; // GREEN auf B4
+    GPIOB->OTYPER &= ~GPIO_OTYPER_OT_5; // RED auf B5
+    // GPIOC Modus für Blue Button einrichten
     GPIOC->MODER &= ~GPIO_MODER_MODER13;
     GPIOC->PUPDR |= GPIO_PUPDR_PUPDR13_0;
-    // Setup USART2 Mode
+    // USART2 Modus einrichten
     GPIOA->MODER |= GPIO_MODER_MODER3_1;
     GPIOA->AFR[0] |= 0b0001 << (4 * 3);
-    // Setup USART2
+    // USART2 einrichten
     USART2->BRR = (APB_FREQ / BAUDRATE);
     USART2->CR1 |= (USART_CR1_RE | USART_CR1_TE | USART_CR1_UE);
 }
 
 void clearbuffer()
 {
+    // Empfangspuffer leeren
     memset(rxbuffer, 0, BUFFER);
     rx_index = 0;
 }
 
 void send_msg(const char *msg)
 {
-    // Interrupt style
+    // Nachricht über UART senden
     while (*msg)
     {
         while (!(USART2->ISR & USART_ISR_TXE))
-            ; // Wait until transmit data register is empty
+            ; // Warten bis Datenregister leer ist
         {};
         USART2->TDR = *msg++;
     }
@@ -90,6 +91,7 @@ void send_msg(const char *msg)
 
 void send_int(int num)
 {
+    // Integer als Nachricht senden
     char buffer[10];
     sprintf(buffer, "%d\n", num);
     send_msg(buffer);
@@ -97,6 +99,7 @@ void send_int(int num)
 
 void settarget()
 {
+    // Zielkoordinate setzen
     targetx++;
     if (targetx > 9)
     {
@@ -112,20 +115,21 @@ void settarget()
 
 void get_msg()
 {
+    // Nachricht über UART empfangen
     if (USART2->ISR & USART_ISR_RXNE)
     {
-        char c = (char)(USART2->RDR); // Read received data
+        char c = (char)(USART2->RDR); // Empfangene Daten lesen
         if (c == '\n')
         {
             rxbuffer[rx_index] = '\0';
             rx_index = 0;
-            // terminate buffer
+            // Buffer terminieren
         }
         else
         {
             rxbuffer[rx_index] = c;
             rx_index++;
-            // overwrite buffer
+            // Buffer überschreiben
         }
     }
 }
@@ -134,14 +138,14 @@ int main(void)
 {
     int iter = 0;
 
-    // Initialize System
+    // System initialisieren
     Init();
 
-    // Test UART transmission
+    // Test der UART Übertragung
     // send_int(12345);
     send_msg("SYSTEM_INITIALIZED\n");
 
-    // Main loop
+    // Hauptschleife
     while (1)
     {
         iter++;
@@ -149,11 +153,11 @@ int main(void)
         switch (currentState)
         {
         case INIT:
-            // Warte auf Tasterdruck (wird im Interrupt gesetzt)
+            // Warten auf Tastendruck (wird im Interrupt gesetzt)
             if (!(GPIOC->IDR & GPIO_IDR_13))
             {
                 isPlayer1 = 1;
-                currentState = S1_WAIT_CS; // Wechsel in den PLAY Zustand
+                currentState = S1_WAIT_CS; // Wechsel in den S1_WAIT_CS Zustand
                 send_msg("START52216069\n");
             }
 
@@ -168,7 +172,7 @@ int main(void)
             break;
 
         case S1_WAIT_CS:
-            // Implementiere Logik für START_S2
+            // Warten auf CS Nachricht
             get_msg();
             if (strncmp(rxbuffer, "CS", 2) == 0 && strlen(rxbuffer) >= 12)
             {
@@ -182,6 +186,7 @@ int main(void)
             }
             break;
         case S1_WAIT_START:
+            // Warten auf START Nachricht
             get_msg();
             if (strncmp(rxbuffer, "START", 5) == 0 && strlen(rxbuffer) >= 9)
             {
@@ -191,6 +196,7 @@ int main(void)
             }
             break;
         case S2_WAIT_CS:
+            // Warten auf CS Nachricht
             get_msg();
             if (strncmp(rxbuffer, "CS", 2) == 0 && strlen(rxbuffer) >= 12)
             {
@@ -204,10 +210,11 @@ int main(void)
             }
             break;
         case PLAY:
-            // Spielimplementierungen hier
+            // Hauptspielzustand
             switch (currentLoop)
             {
             case LOOP_DECIDE_STATE:
+                // Entscheidungsschleife
                 if (isPlayer1 == 1 && def == 0)
                 {
                     def = 1;
@@ -231,8 +238,9 @@ int main(void)
                 break;
 
             case LOOP_SHOOT:
+                // Schusslogik
                 settarget();
-                // Implementiere Logik für Schuss
+                // Schussnachricht senden
                 char hitmsg[12];
                 sprintf(hitmsg, "BOOM%d%d\n", targetx, targety);
                 send_msg(hitmsg);
@@ -240,9 +248,9 @@ int main(void)
                 currentLoop = LOOP_EV_SHOT;
                 break;
             case LOOP_GETSHOT:
-                // Implementiere Logik für Schuss
+                // Schuss empfangen
                 get_msg();
-                if (strncmp(rxbuffer, "BOOM", 4) == 0 && strlen(rxbuffer) >=6)
+                if (strncmp(rxbuffer, "BOOM", 4) == 0 && strlen(rxbuffer) >= 6)
                 {
                     op_targetx = rxbuffer[4] - '0';
                     op_targety = rxbuffer[5] - '0';
@@ -259,23 +267,23 @@ int main(void)
                 }
                 break;
             case LOOP_EV_SHOT:
-                // evaluiere Schuss
+                // Schuss evaluieren
                 get_msg();
                 if (strncmp(rxbuffer, "T", 1) == 0)
                 {
-                    //send_msg("TREFFER\n");
+                    // Treffer
                     clearbuffer();
                     currentLoop = LOOP_DECIDE_STATE;
                 }
                 else if (strncmp(rxbuffer, "W", 1) == 0)
                 {
-                    //send_msg("WASSER\n");
+                    // Wasser (verfehlt)
                     clearbuffer();
                     currentLoop = LOOP_DECIDE_STATE;
                 }
                 else if (strncmp(rxbuffer, "S", 1) == 0)
                 {
-                    //send_msg("SPIELFELDNACHRICHT\n");
+                    // Spielfeldnachricht
                     clearbuffer();
                     currentState = GAMEEND;
                 }
@@ -283,7 +291,7 @@ int main(void)
             }
             break;
         case GAMEEND:
-            // Spielende Logik hier
+            // Spielende Logik
             send_msg("SPIEL BEENDET\n");
             break;
         }
