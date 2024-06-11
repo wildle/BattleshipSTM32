@@ -8,8 +8,7 @@
 #define BUFFER 100
 #define BAUDRATE 9600
 
-// #define DEBUG 1 // Entferne diese Zeile, um den DEBUG-Modus zu deaktivieren
-
+#define DEBUG 1 // Entferne diese Zeile, um den DEBUG-Modus zu deaktivieren
 
 // Enum für die State-Zustände
 typedef enum
@@ -115,6 +114,18 @@ void print_spielfeld(int spielfeld[10][10]) {
     }
 }
 
+void print_debug_info(int spielfeld[10][10]) {
+    #ifdef DEBUG
+    send_msg("DEBUG: Spielfeld:\n");
+    print_spielfeld(spielfeld);
+    char checksum[12] = "CS";
+    calculate_checksum(spielfeld, checksum + 2);
+    send_msg("DEBUG: Checksumme: ");
+    send_msg(checksum);
+    #endif
+}
+
+
 void calculate_checksum(int spielfeld[10][10], char *checksum) {
     for (int i = 0; i < 10; i++) {
         int sum = 0;
@@ -167,17 +178,8 @@ void Init(void)
     init_spielfeld(spielfeld);
     place_ships(spielfeld);
 
-
-
     // Spielfeld zur Überprüfung ausdrucken, wenn DEBUG aktiviert ist
-    #ifdef DEBUG
-    send_msg("DEBUG: Spielfeld:\n");
-    print_spielfeld(spielfeld);
-    char checksum[12] = "CS";
-    calculate_checksum(spielfeld, checksum + 2);
-    send_msg("DEBUG: Checksumme: ");
-    send_msg(checksum);
-    #endif
+    print_debug_info(spielfeld);
 }
 
 void clearbuffer()
@@ -304,7 +306,7 @@ int main(void)
                 currentState = S1_WAIT_START;
             }
             break;
-
+            
         case S1_WAIT_START:
             // Warten auf START Nachricht
             get_msg();
@@ -315,7 +317,7 @@ int main(void)
                 clearbuffer();
             }
             break;
-            
+
         case S2_WAIT_CS:
             // Warten auf CS Nachricht
             get_msg();
@@ -411,9 +413,25 @@ int main(void)
                 break;
             }
             break;
+        
         case GAMEEND:
             // Spielende Logik
-            send_msg("SPIEL BEENDET\n");
+            //send_msg("SPIEL BEENDET\n");
+
+            for (int i = 0; i < 10; i++)
+            {
+                char buffer[14];  // Ausreichend groß, um die gesamte Zeile zu speichern
+                char *ptr = buffer;
+                ptr += sprintf(ptr, "SF%dD", i);
+                for (int j = 0; j < 10; j++) {
+                    ptr += sprintf(ptr, "%d", spielfeld[i][j]);
+                }
+                send_msg(buffer);
+                send_msg("\n");
+            }
+
+            currentState = INIT;
+
             break;
         }
     }
