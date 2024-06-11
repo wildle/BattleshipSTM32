@@ -13,22 +13,24 @@
 // Enum für die State-Zustände
 typedef enum
 {
-    INITIALIZE,
-    S1_WAIT_CHECKSUM,
-    S1_WAIT_START,
-    S2_WAIT_CHECKSUM,
-    PLAY,
-    END_OF_GAME,
+    INITIALIZE,          // Initialisierungszustand
+    S1_WAIT_CHECKSUM,    // Warten auf Checksumme im S1-Zustand
+    S1_WAIT_START,       // Warten auf Start im S1-Zustand
+    S2_WAIT_CHECKSUM,    // Warten auf Checksumme im S2-Zustand
+    PLAY,                // Hauptspielzustand
+    END_OF_GAME          // Spielende Zustand
 } State;
 
+// Enum für die GAMELOOP-Zustände
 typedef enum
 {
-    GAMELOOP_DECIDE,
-    GAMELOOP_PLAYER_SHOT,
-    GAMELOOP_RECIVE_SHOT,
-    GAMELOOP_EVALUATE_SHOT
+    GAMELOOP_DECIDE,        // Entscheidungsschleife
+    GAMELOOP_PLAYER_SHOT,   // Spieler schießt
+    GAMELOOP_RECIVE_SHOT,   // Schuss empfangen
+    GAMELOOP_EVALUATE_SHOT  // Schuss evaluieren
 } GAMELOOP;
 
+// Globale Variablen
 volatile State currentState = INITIALIZE;            // Aktueller Zustand der State-Maschine
 volatile GAMELOOP currentGAMELOOP = GAMELOOP_DECIDE; // Aktueller Zustand der GAMELOOP-Maschine
 volatile int isPlayer1 = 0;                          // Variable zur Bestimmung, ob der Spieler Player 1 ist
@@ -40,8 +42,9 @@ int target_x = 9;                                    // Zielkoordinate x
 int target_y = 9;                                    // Zielkoordinate y
 int op_target_x = 0;                                 // Gegnerzielkoordinate x
 int op_target_y = 0;                                 // Gegnerzielkoordinate y
-int battlefield[10][10] = {0};                         // battlefieldarray
+int battlefield[10][10] = {0};                       // Schlachtfeld-Array
 
+// Funktionsdeklarationen
 void send_msg(const char *msg);
 void calculate_checksum(int battlefield[10][10], char *checksum);
 
@@ -49,18 +52,16 @@ void ADC_Init(void)
 {
     RCC->APB2ENR |= RCC_APB2ENR_ADCEN; // ADC-Takt aktivieren
     ADC1->CR |= ADC_CR_ADEN;           // ADC aktivieren
-    while (!(ADC1->ISR & ADC_ISR_ADRDY))
-        ;                             // Warten, bis ADC bereit ist
-    ADC1->CHSELR = ADC_CHSELR_CHSEL0; // Kanal 0 auswählen (falls verwendet)
-    ADC1->CFGR1 |= ADC_CFGR1_CONT;    // Kontinuierlicher Modus
-    ADC1->CR |= ADC_CR_ADSTART;       // ADC-Start
+    while (!(ADC1->ISR & ADC_ISR_ADRDY)); // Warten, bis ADC bereit ist
+    ADC1->CHSELR = ADC_CHSELR_CHSEL0;  // Kanal 0 auswählen (falls verwendet)
+    ADC1->CFGR1 |= ADC_CFGR1_CONT;     // Kontinuierlicher Modus
+    ADC1->CR |= ADC_CR_ADSTART;        // ADC-Start
 }
 
 uint16_t ADC_Read(void)
 {
-    while (!(ADC1->ISR & ADC_ISR_EOC))
-        ;            // Warten, bis die Konvertierung abgeschlossen ist
-    return ADC1->DR; // Rückgabe des ADC-Wertes
+    while (!(ADC1->ISR & ADC_ISR_EOC)); // Warten, bis die Konvertierung abgeschlossen ist
+    return ADC1->DR;                    // Rückgabe des ADC-Wertes
 }
 
 void init_battlefield(int battlefield[10][10])
@@ -69,14 +70,14 @@ void init_battlefield(int battlefield[10][10])
     {
         for (int j = 0; j < 10; j++)
         {
-            battlefield[i][j] = 0; // Wasser
+            battlefield[i][j] = 0; // Wasser setzen
         }
     }
 }
 
 int can_place_ship(int battlefield[10][10], int x, int y, int dir, int len)
 {
-    // Überprüfen, ob das Schiff innerhalb des battlefields liegt
+    // Überprüfen, ob das Schiff innerhalb des Schlachtfeldes liegt
     if ((dir == 0 && (x + len) > 10) || (dir == 1 && (y + len) > 10))
     {
         return 0;
@@ -87,7 +88,7 @@ int can_place_ship(int battlefield[10][10], int x, int y, int dir, int len)
         int nx = x + (dir == 0 ? i : 0);
         int ny = y + (dir == 1 ? i : 0);
 
-        // Überprüfen, ob das Schiff angrenzende ships berührt
+        // Überprüfen, ob das Schiff angrenzende Schiffe berührt
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
@@ -116,7 +117,7 @@ void place_ship(int battlefield[10][10], int x, int y, int dir, int len)
 
 void place_ships(int battlefield[10][10])
 {
-    int ships[] = {5, 4, 4, 3, 3, 3, 2, 2, 2, 2};
+    int ships[] = {5, 4, 4, 3, 3, 3, 2, 2, 2, 2}; // Schiffslängen
 
     for (int i = 0; i < sizeof(ships) / sizeof(ships[0]); i++)
     {
@@ -146,7 +147,7 @@ void print_battlefield(int battlefield[10][10])
         {
             char buffer[4];
             sprintf(buffer, "%d ", battlefield[i][j]);
-            send_msg(buffer);
+            send_msg(buffer); // Schlachtfeld-Zustand senden
         }
         send_msg("\n");
     }
@@ -176,7 +177,7 @@ void calculate_checksum(int battlefield[10][10], char *checksum)
                 sum++;
             }
         }
-        checksum[i] = '0' + sum;
+        checksum[i] = '0' + sum; // Checksumme berechnen
     }
     checksum[10] = '\n';
 }
@@ -185,7 +186,7 @@ void Init(void)
 {
     // Initialisierung des Systems
     EPL_SystemClock_Config(); // Konfiguration des Systemtakts
-    // Aktivierung der GPIOA- und USART2-Takte
+    // Aktivierung der GPIOA-, GPIOB-, GPIOC- und USART2-Takte
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
     RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
     RCC->AHBENR |= RCC_AHBENR_GPIOCEN;
@@ -216,11 +217,11 @@ void Init(void)
     // Zufallsgenerator initialisieren
     srand(time(NULL));
 
-    // battlefield initialisierung und ships platzieren
+    // Schlachtfeld initialisieren und Schiffe platzieren
     init_battlefield(battlefield);
     place_ships(battlefield);
 
-    // battlefield zur Überprüfung ausdrucken, wenn DEBUG aktiviert ist
+    // Schlachtfeld zur Überprüfung ausdrucken, wenn DEBUG aktiviert ist
     print_debug_info(battlefield);
 }
 
@@ -236,10 +237,8 @@ void send_msg(const char *msg)
     // Nachricht über UART senden
     while (*msg)
     {
-        while (!(USART2->ISR & USART_ISR_TXE))
-            ; // Warten bis Datenregister leer ist
-        {};
-        USART2->TDR = *msg++;
+        while (!(USART2->ISR & USART_ISR_TXE)); // Warten bis Datenregister leer ist
+        USART2->TDR = *msg++; // Zeichen senden
     }
 }
 
@@ -277,30 +276,29 @@ void get_msg()
         {
             rx_buffer[rx_index] = '\0';
             rx_index = 0;
-            // Buffer terminieren
         }
         else
         {
             rx_buffer[rx_index] = c;
             rx_index++;
-            // Buffer überschreiben
         }
     }
 }
 
 int check_game_end(int battlefield[10][10])
 {
+    // Überprüfen, ob das Spiel zu Ende ist
     for (int i = 0; i < 10; i++)
     {
         for (int j = 0; j < 10; j++)
         {
             if (battlefield[i][j] != 0)
             {
-                return 0; // Es gibt noch ships auf dem battlefield
+                return 0; // Es gibt noch Schiffe auf dem Schlachtfeld
             }
         }
     }
-    return 1; // Alle ships wurden versenkt
+    return 1; // Alle Schiffe wurden versenkt
 }
 
 int main(void)
@@ -333,9 +331,6 @@ int main(void)
             get_msg();
             if (strncmp(rx_buffer, "START", 5) == 0 && strlen(rx_buffer) >= 9)
             {
-                // isPlayer1 = 0;
-                // send_msg("CS1234569000\n");
-                //  Berechne und sende die battlefield-Checksumn-Nachricht
                 char checksum[12] = "CS";
                 calculate_checksum(battlefield, checksum + 2);
                 send_msg(checksum);
@@ -350,7 +345,6 @@ int main(void)
             get_msg();
             if (strncmp(rx_buffer, "CS", 2) == 0 && strlen(rx_buffer) >= 12)
             {
-                // send_msg("CS1234567890\n");
                 char checksum[12] = "CS";
                 calculate_checksum(battlefield, checksum + 2);
                 send_msg(checksum);
@@ -463,7 +457,7 @@ int main(void)
                 }
                 else if (strncmp(rx_buffer, "S", 1) == 0)
                 {
-                    // battlefieldnachricht
+                    // Schlachtfeldnachricht
                     clearbuffer();
                     currentState = END_OF_GAME;
                 }
@@ -472,7 +466,7 @@ int main(void)
             break;
 
         case END_OF_GAME:
-
+            // Spielende
             for (int i = 0; i < 10; i++)
             {
                 char buffer[14]; // Ausreichend groß, um die gesamte Zeile zu speichern
