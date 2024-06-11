@@ -8,7 +8,7 @@
 #define BUFFER 100
 #define BAUDRATE 9600
 
- #define DEBUG 1 // Entferne diese Zeile, um den DEBUG-Modus zu deaktivieren
+// #define DEBUG 1 // Entferne diese Zeile, um den DEBUG-Modus zu deaktivieren
 
 // Enum für die State-Zustände
 typedef enum
@@ -31,19 +31,19 @@ typedef enum
 
 volatile State currentState = INITIALIZE;            // Aktueller Zustand der State-Maschine
 volatile GAMELOOP currentGAMELOOP = GAMELOOP_DECIDE; // Aktueller Zustand der GAMELOOP-Maschine
-volatile int isPlayer1 = 0;                    // Variable zur Bestimmung, ob der Spieler Player 1 ist
-char rxbuffer[BUFFER] = {0};                   // Empfangspuffer für Nachrichten
-volatile int rx_index = 0;                     // Index für den Empfangspuffer
-int op_cs[10] = {0};                           // Array zur Speicherung der Gegnerkoordinaten
-volatile int def = 0;                          // Defensiv-Flag
-int targetx = 9;                               // Zielkoordinate x
-int targety = 9;                               // Zielkoordinate y
-int op_targetx = 0;                            // Gegnerzielkoordinate x
-int op_targety = 0;                            // Gegnerzielkoordinate y
-int spielfeld[10][10] = {0};                   // Spielfeldarray
+volatile int isPlayer1 = 0;                          // Variable zur Bestimmung, ob der Spieler Player 1 ist
+char rx_buffer[BUFFER] = {0};                        // Empfangspuffer für Nachrichten
+volatile int rx_index = 0;                           // Index für den Empfangspuffer
+int op_cs[10] = {0};                                 // Array zur Speicherung der Gegnerkoordinaten
+volatile int def = 0;                                // Defensiv-Flag
+int target_x = 9;                                    // Zielkoordinate x
+int target_y = 9;                                    // Zielkoordinate y
+int op_target_x = 0;                                 // Gegnerzielkoordinate x
+int op_target_y = 0;                                 // Gegnerzielkoordinate y
+int battlefield[10][10] = {0};                         // battlefieldarray
 
 void send_msg(const char *msg);
-void calculate_checksum(int spielfeld[10][10], char *checksum);
+void calculate_checksum(int battlefield[10][10], char *checksum);
 
 void ADC_Init(void)
 {
@@ -63,20 +63,20 @@ uint16_t ADC_Read(void)
     return ADC1->DR; // Rückgabe des ADC-Wertes
 }
 
-void init_spielfeld(int spielfeld[10][10])
+void init_battlefield(int battlefield[10][10])
 {
     for (int i = 0; i < 10; i++)
     {
         for (int j = 0; j < 10; j++)
         {
-            spielfeld[i][j] = 0; // Wasser
+            battlefield[i][j] = 0; // Wasser
         }
     }
 }
 
-int can_place_ship(int spielfeld[10][10], int x, int y, int dir, int len)
+int can_place_ship(int battlefield[10][10], int x, int y, int dir, int len)
 {
-    // Überprüfen, ob das Schiff innerhalb des Spielfelds liegt
+    // Überprüfen, ob das Schiff innerhalb des battlefields liegt
     if ((dir == 0 && (x + len) > 10) || (dir == 1 && (y + len) > 10))
     {
         return 0;
@@ -87,14 +87,14 @@ int can_place_ship(int spielfeld[10][10], int x, int y, int dir, int len)
         int nx = x + (dir == 0 ? i : 0);
         int ny = y + (dir == 1 ? i : 0);
 
-        // Überprüfen, ob das Schiff angrenzende Schiffe berührt
+        // Überprüfen, ob das Schiff angrenzende ships berührt
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
             {
                 int ax = nx + dx;
                 int ay = ny + dy;
-                if (ax >= 0 && ax < 10 && ay >= 0 && ay < 10 && spielfeld[ax][ay] != 0)
+                if (ax >= 0 && ax < 10 && ay >= 0 && ay < 10 && battlefield[ax][ay] != 0)
                 {
                     return 0;
                 }
@@ -104,23 +104,23 @@ int can_place_ship(int spielfeld[10][10], int x, int y, int dir, int len)
     return 1;
 }
 
-void place_ship(int spielfeld[10][10], int x, int y, int dir, int len)
+void place_ship(int battlefield[10][10], int x, int y, int dir, int len)
 {
     for (int i = 0; i < len; i++)
     {
         int nx = x + (dir == 0 ? i : 0);
         int ny = y + (dir == 1 ? i : 0);
-        spielfeld[nx][ny] = len; // Schiff platzieren
+        battlefield[nx][ny] = len; // Schiff platzieren
     }
 }
 
-void place_ships(int spielfeld[10][10])
+void place_ships(int battlefield[10][10])
 {
-    int schiffe[] = {5, 4, 4, 3, 3, 3, 2, 2, 2, 2};
+    int ships[] = {5, 4, 4, 3, 3, 3, 2, 2, 2, 2};
 
-    for (int i = 0; i < sizeof(schiffe) / sizeof(schiffe[0]); i++)
+    for (int i = 0; i < sizeof(ships) / sizeof(ships[0]); i++)
     {
-        int ship_len = schiffe[i];
+        int ship_len = ships[i];
         int placed = 0;
 
         while (!placed)
@@ -129,49 +129,49 @@ void place_ships(int spielfeld[10][10])
             int x = ADC_Read() % 10;  // Zufällige x-Position von ADC-Wert
             int y = ADC_Read() % 10;  // Zufällige y-Position von ADC-Wert
 
-            if (can_place_ship(spielfeld, x, y, dir, ship_len))
+            if (can_place_ship(battlefield, x, y, dir, ship_len))
             {
-                place_ship(spielfeld, x, y, dir, ship_len);
+                place_ship(battlefield, x, y, dir, ship_len);
                 placed = 1;
             }
         }
     }
 }
 
-void print_spielfeld(int spielfeld[10][10])
+void print_battlefield(int battlefield[10][10])
 {
     for (int i = 0; i < 10; i++)
     {
         for (int j = 0; j < 10; j++)
         {
             char buffer[4];
-            sprintf(buffer, "%d ", spielfeld[i][j]);
+            sprintf(buffer, "%d ", battlefield[i][j]);
             send_msg(buffer);
         }
         send_msg("\n");
     }
 }
 
-void print_debug_info(int spielfeld[10][10])
+void print_debug_info(int battlefield[10][10])
 {
 #ifdef DEBUG
-    send_msg("DEBUG: Spielfeld:\n");
-    print_spielfeld(spielfeld);
+    send_msg("DEBUG: battlefield:\n");
+    print_battlefield(battlefield);
     char checksum[12] = "CS";
-    calculate_checksum(spielfeld, checksum + 2);
-    send_msg("DEBUG: Checksumme: ");
+    calculate_checksum(battlefield, checksum + 2);
+    send_msg("DEBUG: Checksum: ");
     send_msg(checksum);
 #endif
 }
 
-void calculate_checksum(int spielfeld[10][10], char *checksum)
+void calculate_checksum(int battlefield[10][10], char *checksum)
 {
     for (int i = 0; i < 10; i++)
     {
         int sum = 0;
         for (int j = 0; j < 10; j++)
         {
-            if (spielfeld[j][i] != 0)
+            if (battlefield[j][i] != 0)
             {
                 sum++;
             }
@@ -216,18 +216,18 @@ void Init(void)
     // Zufallsgenerator initialisieren
     srand(time(NULL));
 
-    // Spielfeld initialisierung und Schiffe platzieren
-    init_spielfeld(spielfeld);
-    place_ships(spielfeld);
+    // battlefield initialisierung und ships platzieren
+    init_battlefield(battlefield);
+    place_ships(battlefield);
 
-    // Spielfeld zur Überprüfung ausdrucken, wenn DEBUG aktiviert ist
-    print_debug_info(spielfeld);
+    // battlefield zur Überprüfung ausdrucken, wenn DEBUG aktiviert ist
+    print_debug_info(battlefield);
 }
 
 void clearbuffer()
 {
     // Empfangspuffer leeren
-    memset(rxbuffer, 0, BUFFER);
+    memset(rx_buffer, 0, BUFFER);
     rx_index = 0;
 }
 
@@ -254,15 +254,15 @@ void send_int(int num)
 void settarget()
 {
     // Zielkoordinate setzen
-    targetx++;
-    if (targetx > 9)
+    target_x++;
+    if (target_x > 9)
     {
-        targetx = 0;
-        targety++;
-        if (targety > 9)
+        target_x = 0;
+        target_y++;
+        if (target_y > 9)
         {
-            targety = 0;
-            targetx = 0;
+            target_y = 0;
+            target_x = 0;
         }
     }
 }
@@ -275,32 +275,32 @@ void get_msg()
         char c = (char)(USART2->RDR); // Empfangene Daten lesen
         if (c == '\n')
         {
-            rxbuffer[rx_index] = '\0';
+            rx_buffer[rx_index] = '\0';
             rx_index = 0;
             // Buffer terminieren
         }
         else
         {
-            rxbuffer[rx_index] = c;
+            rx_buffer[rx_index] = c;
             rx_index++;
             // Buffer überschreiben
         }
     }
 }
 
-int check_game_end(int spielfeld[10][10])
+int check_game_end(int battlefield[10][10])
 {
     for (int i = 0; i < 10; i++)
     {
         for (int j = 0; j < 10; j++)
         {
-            if (spielfeld[i][j] != 0)
+            if (battlefield[i][j] != 0)
             {
-                return 0; // Es gibt noch Schiffe auf dem Spielfeld
+                return 0; // Es gibt noch ships auf dem battlefield
             }
         }
     }
-    return 1; // Alle Schiffe wurden versenkt
+    return 1; // Alle ships wurden versenkt
 }
 
 int main(void)
@@ -331,13 +331,13 @@ int main(void)
             }
 
             get_msg();
-            if (strncmp(rxbuffer, "START", 5) == 0 && strlen(rxbuffer) >= 9)
+            if (strncmp(rx_buffer, "START", 5) == 0 && strlen(rx_buffer) >= 9)
             {
                 // isPlayer1 = 0;
                 // send_msg("CS1234569000\n");
-                //  Berechne und sende die Spielfeld-Checksummen-Nachricht
+                //  Berechne und sende die battlefield-Checksumn-Nachricht
                 char checksum[12] = "CS";
-                calculate_checksum(spielfeld, checksum + 2);
+                calculate_checksum(battlefield, checksum + 2);
                 send_msg(checksum);
 
                 currentState = S2_WAIT_CHECKSUM;
@@ -348,16 +348,16 @@ int main(void)
         case S1_WAIT_CHECKSUM:
             // Warten auf CS Nachricht
             get_msg();
-            if (strncmp(rxbuffer, "CS", 2) == 0 && strlen(rxbuffer) >= 12)
+            if (strncmp(rx_buffer, "CS", 2) == 0 && strlen(rx_buffer) >= 12)
             {
                 // send_msg("CS1234567890\n");
                 char checksum[12] = "CS";
-                calculate_checksum(spielfeld, checksum + 2);
+                calculate_checksum(battlefield, checksum + 2);
                 send_msg(checksum);
 
                 for (int i = 0; i < 10; i++)
                 {
-                    op_cs[i] = rxbuffer[2 + i] - '0';
+                    op_cs[i] = rx_buffer[2 + i] - '0';
                 }
                 clearbuffer();
                 currentState = S1_WAIT_START;
@@ -367,7 +367,7 @@ int main(void)
         case S1_WAIT_START:
             // Warten auf START Nachricht
             get_msg();
-            if (strncmp(rxbuffer, "START", 5) == 0 && strlen(rxbuffer) >= 9)
+            if (strncmp(rx_buffer, "START", 5) == 0 && strlen(rx_buffer) >= 9)
             {
                 send_msg("start received\n");
                 currentState = PLAY;
@@ -378,12 +378,12 @@ int main(void)
         case S2_WAIT_CHECKSUM:
             // Warten auf CS Nachricht
             get_msg();
-            if (strncmp(rxbuffer, "CS", 2) == 0 && strlen(rxbuffer) >= 12)
+            if (strncmp(rx_buffer, "CS", 2) == 0 && strlen(rx_buffer) >= 12)
             {
                 send_msg("START52216069\n");
                 for (int i = 0; i < 10; i++)
                 {
-                    op_cs[i] = rxbuffer[2 + i] - '0';
+                    op_cs[i] = rx_buffer[2 + i] - '0';
                 }
                 clearbuffer();
                 currentState = PLAY;
@@ -422,7 +422,7 @@ int main(void)
                 settarget();
                 // Schussnachricht senden
                 char hitmsg[12];
-                sprintf(hitmsg, "BOOM%d%d\n", targetx, targety);
+                sprintf(hitmsg, "BOOM%d%d\n", target_x, target_y);
                 send_msg(hitmsg);
                 clearbuffer();
                 currentGAMELOOP = GAMELOOP_EVALUATE_SHOT;
@@ -430,11 +430,11 @@ int main(void)
             case GAMELOOP_RECIVE_SHOT:
                 // Schuss empfangen
                 get_msg();
-                if (strncmp(rxbuffer, "BOOM", 4) == 0 && strlen(rxbuffer) >= 6)
+                if (strncmp(rx_buffer, "BOOM", 4) == 0 && strlen(rx_buffer) >= 6)
                 {
-                    op_targetx = rxbuffer[4] - '0';
-                    op_targety = rxbuffer[5] - '0';
-                    if (spielfeld[op_targetx][op_targety] != 0)
+                    op_target_x = rx_buffer[4] - '0';
+                    op_target_y = rx_buffer[5] - '0';
+                    if (battlefield[op_target_x][op_target_y] != 0)
                     {
                         send_msg("T\n");
                     }
@@ -449,21 +449,21 @@ int main(void)
             case GAMELOOP_EVALUATE_SHOT:
                 // Schuss evaluieren
                 get_msg();
-                if (strncmp(rxbuffer, "T", 1) == 0)
+                if (strncmp(rx_buffer, "T", 1) == 0)
                 {
                     // Treffer
                     clearbuffer();
                     currentGAMELOOP = GAMELOOP_DECIDE;
                 }
-                else if (strncmp(rxbuffer, "W", 1) == 0)
+                else if (strncmp(rx_buffer, "W", 1) == 0)
                 {
                     // Wasser (verfehlt)
                     clearbuffer();
                     currentGAMELOOP = GAMELOOP_DECIDE;
                 }
-                else if (strncmp(rxbuffer, "S", 1) == 0)
+                else if (strncmp(rx_buffer, "S", 1) == 0)
                 {
-                    // Spielfeldnachricht
+                    // battlefieldnachricht
                     clearbuffer();
                     currentState = END_OF_GAME;
                 }
@@ -473,7 +473,6 @@ int main(void)
 
         case END_OF_GAME:
 
-
             for (int i = 0; i < 10; i++)
             {
                 char buffer[14]; // Ausreichend groß, um die gesamte Zeile zu speichern
@@ -481,7 +480,7 @@ int main(void)
                 ptr += sprintf(ptr, "SF%dD", i);
                 for (int j = 0; j < 10; j++)
                 {
-                    ptr += sprintf(ptr, "%d", spielfeld[i][j]);
+                    ptr += sprintf(ptr, "%d", battlefield[i][j]);
                 }
                 send_msg(buffer);
                 send_msg("\n");
