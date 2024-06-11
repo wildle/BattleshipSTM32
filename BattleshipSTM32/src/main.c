@@ -42,6 +42,21 @@ int op_targetx = 0; // Gegnerzielkoordinate x
 int op_targety = 0; // Gegnerzielkoordinate y
 int spielfeld[10][10] = {0}; // Spielfeldarray
 
+void ADC_Init(void) {
+    RCC->APB2ENR |= RCC_APB2ENR_ADCEN; // ADC-Takt aktivieren
+    ADC1->CR |= ADC_CR_ADEN; // ADC aktivieren
+    while (!(ADC1->ISR & ADC_ISR_ADRDY)); // Warten, bis ADC bereit ist
+    ADC1->CHSELR = ADC_CHSELR_CHSEL0; // Kanal 0 auswählen (falls verwendet)
+    ADC1->CFGR1 |= ADC_CFGR1_CONT; // Kontinuierlicher Modus
+    ADC1->CR |= ADC_CR_ADSTART; // ADC-Start
+}
+
+uint16_t ADC_Read(void) {
+    while (!(ADC1->ISR & ADC_ISR_EOC)); // Warten, bis die Konvertierung abgeschlossen ist
+    return ADC1->DR; // Rückgabe des ADC-Wertes
+}
+
+
 void init_spielfeld(int spielfeld[10][10]) {
     for (int i = 0; i < 10; i++) {
         for (int j = 0; j < 10; j++) {
@@ -84,17 +99,16 @@ void place_ship(int spielfeld[10][10], int x, int y, int dir, int len) {
 
 void place_ships(int spielfeld[10][10]) {
     int schiffe[] = {5, 4, 4, 3, 3, 3, 2, 2, 2, 2};
-    srand(time(NULL)); // Zufallsgenerator initialisieren
-    
+
     for (int i = 0; i < sizeof(schiffe) / sizeof(schiffe[0]); i++) {
         int ship_len = schiffe[i];
         int placed = 0;
-        
+
         while (!placed) {
-            int dir = rand() % 2; // 0: horizontal, 1: vertikal
-            int x = rand() % 10;
-            int y = rand() % 10;
-            
+            int dir = ADC_Read() % 2; // Zufällige Richtung von ADC-Wert
+            int x = ADC_Read() % 10; // Zufällige x-Position von ADC-Wert
+            int y = ADC_Read() % 10; // Zufällige y-Position von ADC-Wert
+
             if (can_place_ship(spielfeld, x, y, dir, ship_len)) {
                 place_ship(spielfeld, x, y, dir, ship_len);
                 placed = 1;
@@ -102,6 +116,7 @@ void place_ships(int spielfeld[10][10]) {
         }
     }
 }
+
 
 void print_spielfeld(int spielfeld[10][10]) {
     for (int i = 0; i < 10; i++) {
@@ -170,6 +185,8 @@ void Init(void)
     // USART2 einrichten
     USART2->BRR = (APB_FREQ / BAUDRATE);
     USART2->CR1 |= (USART_CR1_RE | USART_CR1_TE | USART_CR1_UE);
+
+    ADC_Init(); // Initialisierung des ADC
 
     // Zufallsgenerator initialisieren
     srand(time(NULL));
