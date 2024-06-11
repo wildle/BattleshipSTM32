@@ -8,7 +8,7 @@
 #define BUFFER 100
 #define BAUDRATE 9600
 
-#define DEBUG 1 // Entferne diese Zeile, um den DEBUG-Modus zu deaktivieren
+ // #define DEBUG 1 // Entferne diese Zeile, um den DEBUG-Modus zu deaktivieren
 
 // Enum für die State-Zustände
 typedef enum
@@ -29,58 +29,73 @@ typedef enum
     LOOP_EV_SHOT
 } LOOP;
 
-volatile State currentState = INIT; // Aktueller Zustand der State-Maschine
+volatile State currentState = INIT;            // Aktueller Zustand der State-Maschine
 volatile LOOP currentLoop = LOOP_DECIDE_STATE; // Aktueller Zustand der Loop-Maschine
-volatile int isPlayer1 = 0; // Variable zur Bestimmung, ob der Spieler Player 1 ist
-char rxbuffer[BUFFER] = {0}; // Empfangspuffer für Nachrichten
-volatile int rx_index = 0; // Index für den Empfangspuffer
-int op_cs[10] = {0}; // Array zur Speicherung der Gegnerkoordinaten
-volatile int def = 0; // Defensiv-Flag
-int targetx = 9; // Zielkoordinate x
-int targety = 9; // Zielkoordinate y
-int op_targetx = 0; // Gegnerzielkoordinate x
-int op_targety = 0; // Gegnerzielkoordinate y
-int spielfeld[10][10] = {0}; // Spielfeldarray
+volatile int isPlayer1 = 0;                    // Variable zur Bestimmung, ob der Spieler Player 1 ist
+char rxbuffer[BUFFER] = {0};                   // Empfangspuffer für Nachrichten
+volatile int rx_index = 0;                     // Index für den Empfangspuffer
+int op_cs[10] = {0};                           // Array zur Speicherung der Gegnerkoordinaten
+volatile int def = 0;                          // Defensiv-Flag
+int targetx = 9;                               // Zielkoordinate x
+int targety = 9;                               // Zielkoordinate y
+int op_targetx = 0;                            // Gegnerzielkoordinate x
+int op_targety = 0;                            // Gegnerzielkoordinate y
+int spielfeld[10][10] = {0};                   // Spielfeldarray
 
-void ADC_Init(void) {
+void send_msg(const char *msg);
+void calculate_checksum(int spielfeld[10][10], char *checksum);
+
+void ADC_Init(void)
+{
     RCC->APB2ENR |= RCC_APB2ENR_ADCEN; // ADC-Takt aktivieren
-    ADC1->CR |= ADC_CR_ADEN; // ADC aktivieren
-    while (!(ADC1->ISR & ADC_ISR_ADRDY)); // Warten, bis ADC bereit ist
+    ADC1->CR |= ADC_CR_ADEN;           // ADC aktivieren
+    while (!(ADC1->ISR & ADC_ISR_ADRDY))
+        ;                             // Warten, bis ADC bereit ist
     ADC1->CHSELR = ADC_CHSELR_CHSEL0; // Kanal 0 auswählen (falls verwendet)
-    ADC1->CFGR1 |= ADC_CFGR1_CONT; // Kontinuierlicher Modus
-    ADC1->CR |= ADC_CR_ADSTART; // ADC-Start
+    ADC1->CFGR1 |= ADC_CFGR1_CONT;    // Kontinuierlicher Modus
+    ADC1->CR |= ADC_CR_ADSTART;       // ADC-Start
 }
 
-uint16_t ADC_Read(void) {
-    while (!(ADC1->ISR & ADC_ISR_EOC)); // Warten, bis die Konvertierung abgeschlossen ist
+uint16_t ADC_Read(void)
+{
+    while (!(ADC1->ISR & ADC_ISR_EOC))
+        ;            // Warten, bis die Konvertierung abgeschlossen ist
     return ADC1->DR; // Rückgabe des ADC-Wertes
 }
 
-
-void init_spielfeld(int spielfeld[10][10]) {
-    for (int i = 0; i < 10; i++) {
-        for (int j = 0; j < 10; j++) {
+void init_spielfeld(int spielfeld[10][10])
+{
+    for (int i = 0; i < 10; i++)
+    {
+        for (int j = 0; j < 10; j++)
+        {
             spielfeld[i][j] = 0; // Wasser
         }
     }
 }
 
-int can_place_ship(int spielfeld[10][10], int x, int y, int dir, int len) {
+int can_place_ship(int spielfeld[10][10], int x, int y, int dir, int len)
+{
     // Überprüfen, ob das Schiff innerhalb des Spielfelds liegt
-    if ((dir == 0 && (x + len) > 10) || (dir == 1 && (y + len) > 10)) {
+    if ((dir == 0 && (x + len) > 10) || (dir == 1 && (y + len) > 10))
+    {
         return 0;
     }
 
-    for (int i = 0; i < len; i++) {
+    for (int i = 0; i < len; i++)
+    {
         int nx = x + (dir == 0 ? i : 0);
         int ny = y + (dir == 1 ? i : 0);
-        
+
         // Überprüfen, ob das Schiff angrenzende Schiffe berührt
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
                 int ax = nx + dx;
                 int ay = ny + dy;
-                if (ax >= 0 && ax < 10 && ay >= 0 && ay < 10 && spielfeld[ax][ay] != 0) {
+                if (ax >= 0 && ax < 10 && ay >= 0 && ay < 10 && spielfeld[ax][ay] != 0)
+                {
                     return 0;
                 }
             }
@@ -89,27 +104,33 @@ int can_place_ship(int spielfeld[10][10], int x, int y, int dir, int len) {
     return 1;
 }
 
-void place_ship(int spielfeld[10][10], int x, int y, int dir, int len) {
-    for (int i = 0; i < len; i++) {
+void place_ship(int spielfeld[10][10], int x, int y, int dir, int len)
+{
+    for (int i = 0; i < len; i++)
+    {
         int nx = x + (dir == 0 ? i : 0);
         int ny = y + (dir == 1 ? i : 0);
         spielfeld[nx][ny] = len; // Schiff platzieren
     }
 }
 
-void place_ships(int spielfeld[10][10]) {
+void place_ships(int spielfeld[10][10])
+{
     int schiffe[] = {5, 4, 4, 3, 3, 3, 2, 2, 2, 2};
 
-    for (int i = 0; i < sizeof(schiffe) / sizeof(schiffe[0]); i++) {
+    for (int i = 0; i < sizeof(schiffe) / sizeof(schiffe[0]); i++)
+    {
         int ship_len = schiffe[i];
         int placed = 0;
 
-        while (!placed) {
+        while (!placed)
+        {
             int dir = ADC_Read() % 2; // Zufällige Richtung von ADC-Wert
-            int x = ADC_Read() % 10; // Zufällige x-Position von ADC-Wert
-            int y = ADC_Read() % 10; // Zufällige y-Position von ADC-Wert
+            int x = ADC_Read() % 10;  // Zufällige x-Position von ADC-Wert
+            int y = ADC_Read() % 10;  // Zufällige y-Position von ADC-Wert
 
-            if (can_place_ship(spielfeld, x, y, dir, ship_len)) {
+            if (can_place_ship(spielfeld, x, y, dir, ship_len))
+            {
                 place_ship(spielfeld, x, y, dir, ship_len);
                 placed = 1;
             }
@@ -117,10 +138,12 @@ void place_ships(int spielfeld[10][10]) {
     }
 }
 
-
-void print_spielfeld(int spielfeld[10][10]) {
-    for (int i = 0; i < 10; i++) {
-        for (int j = 0; j < 10; j++) {
+void print_spielfeld(int spielfeld[10][10])
+{
+    for (int i = 0; i < 10; i++)
+    {
+        for (int j = 0; j < 10; j++)
+        {
             char buffer[4];
             sprintf(buffer, "%d ", spielfeld[i][j]);
             send_msg(buffer);
@@ -129,23 +152,27 @@ void print_spielfeld(int spielfeld[10][10]) {
     }
 }
 
-void print_debug_info(int spielfeld[10][10]) {
-    #ifdef DEBUG
+void print_debug_info(int spielfeld[10][10])
+{
+#ifdef DEBUG
     send_msg("DEBUG: Spielfeld:\n");
     print_spielfeld(spielfeld);
     char checksum[12] = "CS";
     calculate_checksum(spielfeld, checksum + 2);
     send_msg("DEBUG: Checksumme: ");
     send_msg(checksum);
-    #endif
+#endif
 }
 
-
-void calculate_checksum(int spielfeld[10][10], char *checksum) {
-    for (int i = 0; i < 10; i++) {
+void calculate_checksum(int spielfeld[10][10], char *checksum)
+{
+    for (int i = 0; i < 10; i++)
+    {
         int sum = 0;
-        for (int j = 0; j < 10; j++) {
-            if (spielfeld[j][i] != 0) {
+        for (int j = 0; j < 10; j++)
+        {
+            if (spielfeld[j][i] != 0)
+            {
                 sum++;
             }
         }
@@ -153,8 +180,6 @@ void calculate_checksum(int spielfeld[10][10], char *checksum) {
     }
     checksum[10] = '\n';
 }
-
-
 
 void Init(void)
 {
@@ -190,7 +215,7 @@ void Init(void)
 
     // Zufallsgenerator initialisieren
     srand(time(NULL));
-    
+
     // Spielfeld initialisierung und Schiffe platzieren
     init_spielfeld(spielfeld);
     place_ships(spielfeld);
@@ -263,6 +288,21 @@ void get_msg()
     }
 }
 
+int check_game_end(int spielfeld[10][10])
+{
+    for (int i = 0; i < 10; i++)
+    {
+        for (int j = 0; j < 10; j++)
+        {
+            if (spielfeld[i][j] != 0)
+            {
+                return 0; // Es gibt noch Schiffe auf dem Spielfeld
+            }
+        }
+    }
+    return 1; // Alle Schiffe wurden versenkt
+}
+
 int main(void)
 {
     int iter = 0;
@@ -293,9 +333,9 @@ int main(void)
             get_msg();
             if (strncmp(rxbuffer, "START", 5) == 0 && strlen(rxbuffer) >= 9)
             {
-                //isPlayer1 = 0;
-                //send_msg("CS1234569000\n");
-                // Berechne und sende die Spielfeld-Checksummen-Nachricht
+                // isPlayer1 = 0;
+                // send_msg("CS1234569000\n");
+                //  Berechne und sende die Spielfeld-Checksummen-Nachricht
                 char checksum[12] = "CS";
                 calculate_checksum(spielfeld, checksum + 2);
                 send_msg(checksum);
@@ -310,7 +350,7 @@ int main(void)
             get_msg();
             if (strncmp(rxbuffer, "CS", 2) == 0 && strlen(rxbuffer) >= 12)
             {
-                //send_msg("CS1234567890\n");
+                // send_msg("CS1234567890\n");
                 char checksum[12] = "CS";
                 calculate_checksum(spielfeld, checksum + 2);
                 send_msg(checksum);
@@ -323,7 +363,7 @@ int main(void)
                 currentState = S1_WAIT_START;
             }
             break;
-            
+
         case S1_WAIT_START:
             // Warten auf START Nachricht
             get_msg();
@@ -430,17 +470,17 @@ int main(void)
                 break;
             }
             break;
-        
+
         case GAMEEND:
-            // Spielende Logik
-            //send_msg("SPIEL BEENDET\n");
+
 
             for (int i = 0; i < 10; i++)
             {
-                char buffer[14];  // Ausreichend groß, um die gesamte Zeile zu speichern
+                char buffer[14]; // Ausreichend groß, um die gesamte Zeile zu speichern
                 char *ptr = buffer;
                 ptr += sprintf(ptr, "SF%dD", i);
-                for (int j = 0; j < 10; j++) {
+                for (int j = 0; j < 10; j++)
+                {
                     ptr += sprintf(ptr, "%d", spielfeld[i][j]);
                 }
                 send_msg(buffer);
@@ -448,7 +488,6 @@ int main(void)
             }
 
             currentState = INIT;
-
             break;
         }
     }
