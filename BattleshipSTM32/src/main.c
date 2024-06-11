@@ -1,11 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "mci_clock.h"
 #include "stm32f0xx.h"
 
 #define BUFFER 100
 #define BAUDRATE 9600
+
+// #define DEBUG 1 // Entferne diese Zeile, um den DEBUG-Modus zu deaktivieren
+
 
 // Enum für die State-Zustände
 typedef enum
@@ -39,6 +43,93 @@ int op_targetx = 0; // Gegnerzielkoordinate x
 int op_targety = 0; // Gegnerzielkoordinate y
 int spielfeld[10][10] = {0}; // Spielfeldarray
 
+void init_spielfeld(int spielfeld[10][10]) {
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; j++) {
+            spielfeld[i][j] = 0; // Wasser
+        }
+    }
+}
+
+int can_place_ship(int spielfeld[10][10], int x, int y, int dir, int len) {
+    // Überprüfen, ob das Schiff innerhalb des Spielfelds liegt
+    if ((dir == 0 && (x + len) > 10) || (dir == 1 && (y + len) > 10)) {
+        return 0;
+    }
+
+    for (int i = 0; i < len; i++) {
+        int nx = x + (dir == 0 ? i : 0);
+        int ny = y + (dir == 1 ? i : 0);
+        
+        // Überprüfen, ob das Schiff angrenzende Schiffe berührt
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                int ax = nx + dx;
+                int ay = ny + dy;
+                if (ax >= 0 && ax < 10 && ay >= 0 && ay < 10 && spielfeld[ax][ay] != 0) {
+                    return 0;
+                }
+            }
+        }
+    }
+    return 1;
+}
+
+void place_ship(int spielfeld[10][10], int x, int y, int dir, int len) {
+    for (int i = 0; i < len; i++) {
+        int nx = x + (dir == 0 ? i : 0);
+        int ny = y + (dir == 1 ? i : 0);
+        spielfeld[nx][ny] = len; // Schiff platzieren
+    }
+}
+
+void place_ships(int spielfeld[10][10]) {
+    int schiffe[] = {5, 4, 4, 3, 3, 3, 2, 2, 2, 2};
+    srand(time(NULL)); // Zufallsgenerator initialisieren
+    
+    for (int i = 0; i < sizeof(schiffe) / sizeof(schiffe[0]); i++) {
+        int ship_len = schiffe[i];
+        int placed = 0;
+        
+        while (!placed) {
+            int dir = rand() % 2; // 0: horizontal, 1: vertikal
+            int x = rand() % 10;
+            int y = rand() % 10;
+            
+            if (can_place_ship(spielfeld, x, y, dir, ship_len)) {
+                place_ship(spielfeld, x, y, dir, ship_len);
+                placed = 1;
+            }
+        }
+    }
+}
+
+void print_spielfeld(int spielfeld[10][10]) {
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; j++) {
+            char buffer[4];
+            sprintf(buffer, "%d ", spielfeld[i][j]);
+            send_msg(buffer);
+        }
+        send_msg("\n");
+    }
+}
+
+void calculate_checksum(int spielfeld[10][10], char *checksum) {
+    for (int i = 0; i < 10; i++) {
+        int sum = 0;
+        for (int j = 0; j < 10; j++) {
+            if (spielfeld[j][i] != 0) {
+                sum++;
+            }
+        }
+        checksum[i] = '0' + sum;
+    }
+    checksum[10] = '\n';
+}
+
+
+
 void Init(void)
 {
     // Initialisierung des Systems
@@ -68,6 +159,25 @@ void Init(void)
     // USART2 einrichten
     USART2->BRR = (APB_FREQ / BAUDRATE);
     USART2->CR1 |= (USART_CR1_RE | USART_CR1_TE | USART_CR1_UE);
+
+    // Zufallsgenerator initialisieren
+    srand(time(NULL));
+    
+    // Spielfeld initialisierung und Schiffe platzieren
+    init_spielfeld(spielfeld);
+    place_ships(spielfeld);
+
+
+
+    // Spielfeld zur Überprüfung ausdrucken, wenn DEBUG aktiviert ist
+    #ifdef DEBUG
+    send_msg("DEBUG: Spielfeld:\n");
+    print_spielfeld(spielfeld);
+    char checksum[12] = "CS";
+    calculate_checksum(spielfeld, checksum + 2);
+    send_msg("DEBUG: Checksumme: ");
+    send_msg(checksum);
+    #endif
 }
 
 void clearbuffer()
@@ -164,8 +274,13 @@ int main(void)
             get_msg();
             if (strncmp(rxbuffer, "START", 5) == 0 && strlen(rxbuffer) >= 9)
             {
-                isPlayer1 = 0;
-                send_msg("CS1234569000\n");
+                //isPlayer1 = 0;
+                //send_msg("CS1234569000\n");
+                // Berechne und sende die Spielfeld-Checksummen-Nachricht
+                char checksum[12] = "CS";
+                calculate_checksum(spielfeld, checksum + 2);
+                send_msg(checksum);
+
                 currentState = S2_WAIT_CS;
                 clearbuffer();
             }
@@ -176,7 +291,11 @@ int main(void)
             get_msg();
             if (strncmp(rxbuffer, "CS", 2) == 0 && strlen(rxbuffer) >= 12)
             {
-                send_msg("CS1234567890\n");
+                //send_msg("CS1234567890\n");
+                char checksum[12] = "CS";
+                calculate_checksum(spielfeld, checksum + 2);
+                send_msg(checksum);
+
                 for (int i = 0; i < 10; i++)
                 {
                     op_cs[i] = rxbuffer[2 + i] - '0';
@@ -185,6 +304,7 @@ int main(void)
                 currentState = S1_WAIT_START;
             }
             break;
+
         case S1_WAIT_START:
             // Warten auf START Nachricht
             get_msg();
@@ -195,6 +315,7 @@ int main(void)
                 clearbuffer();
             }
             break;
+            
         case S2_WAIT_CS:
             // Warten auf CS Nachricht
             get_msg();
