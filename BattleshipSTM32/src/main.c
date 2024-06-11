@@ -8,29 +8,29 @@
 #define BUFFER 100
 #define BAUDRATE 9600
 
- // #define DEBUG 1 // Entferne diese Zeile, um den DEBUG-Modus zu deaktivieren
+ #define DEBUG 1 // Entferne diese Zeile, um den DEBUG-Modus zu deaktivieren
 
 // Enum für die State-Zustände
 typedef enum
 {
-    INIT,
-    S1_WAIT_CS,
+    INITIALIZE,
+    S1_WAIT_CHECKSUM,
     S1_WAIT_START,
-    S2_WAIT_CS,
+    S2_WAIT_CHECKSUM,
     PLAY,
-    GAMEEND
+    END_OF_GAME,
 } State;
 
 typedef enum
 {
-    LOOP_DECIDE_STATE,
-    LOOP_SHOOT,
-    LOOP_GETSHOT,
-    LOOP_EV_SHOT
-} LOOP;
+    GAMELOOP_DECIDE,
+    GAMELOOP_PLAYER_SHOT,
+    GAMELOOP_RECIVE_SHOT,
+    GAMELOOP_EVALUATE_SHOT
+} GAMELOOP;
 
-volatile State currentState = INIT;            // Aktueller Zustand der State-Maschine
-volatile LOOP currentLoop = LOOP_DECIDE_STATE; // Aktueller Zustand der Loop-Maschine
+volatile State currentState = INITIALIZE;            // Aktueller Zustand der State-Maschine
+volatile GAMELOOP currentGAMELOOP = GAMELOOP_DECIDE; // Aktueller Zustand der GAMELOOP-Maschine
 volatile int isPlayer1 = 0;                    // Variable zur Bestimmung, ob der Spieler Player 1 ist
 char rxbuffer[BUFFER] = {0};                   // Empfangspuffer für Nachrichten
 volatile int rx_index = 0;                     // Index für den Empfangspuffer
@@ -321,12 +321,12 @@ int main(void)
 
         switch (currentState)
         {
-        case INIT:
+        case INITIALIZE:
             // Warten auf Tastendruck (wird im Interrupt gesetzt)
             if (!(GPIOC->IDR & GPIO_IDR_13))
             {
                 isPlayer1 = 1;
-                currentState = S1_WAIT_CS; // Wechsel in den S1_WAIT_CS Zustand
+                currentState = S1_WAIT_CHECKSUM; // Wechsel in den S1_WAIT_CHECKSUM Zustand
                 send_msg("START52216069\n");
             }
 
@@ -340,12 +340,12 @@ int main(void)
                 calculate_checksum(spielfeld, checksum + 2);
                 send_msg(checksum);
 
-                currentState = S2_WAIT_CS;
+                currentState = S2_WAIT_CHECKSUM;
                 clearbuffer();
             }
             break;
 
-        case S1_WAIT_CS:
+        case S1_WAIT_CHECKSUM:
             // Warten auf CS Nachricht
             get_msg();
             if (strncmp(rxbuffer, "CS", 2) == 0 && strlen(rxbuffer) >= 12)
@@ -375,7 +375,7 @@ int main(void)
             }
             break;
 
-        case S2_WAIT_CS:
+        case S2_WAIT_CHECKSUM:
             // Warten auf CS Nachricht
             get_msg();
             if (strncmp(rxbuffer, "CS", 2) == 0 && strlen(rxbuffer) >= 12)
@@ -391,33 +391,33 @@ int main(void)
             break;
         case PLAY:
             // Hauptspielzustand
-            switch (currentLoop)
+            switch (currentGAMELOOP)
             {
-            case LOOP_DECIDE_STATE:
+            case GAMELOOP_DECIDE:
                 // Entscheidungsschleife
                 if (isPlayer1 == 1 && def == 0)
                 {
                     def = 1;
-                    currentLoop = LOOP_SHOOT;
+                    currentGAMELOOP = GAMELOOP_PLAYER_SHOT;
                 }
                 else if (isPlayer1 == 1 && def == 1)
                 {
                     def = 0;
-                    currentLoop = LOOP_GETSHOT;
+                    currentGAMELOOP = GAMELOOP_RECIVE_SHOT;
                 }
                 else if (isPlayer1 == 0 && def == 0)
                 {
                     def = 1;
-                    currentLoop = LOOP_GETSHOT;
+                    currentGAMELOOP = GAMELOOP_RECIVE_SHOT;
                 }
                 else if (isPlayer1 == 0 && def == 1)
                 {
                     def = 0;
-                    currentLoop = LOOP_SHOOT;
+                    currentGAMELOOP = GAMELOOP_PLAYER_SHOT;
                 }
                 break;
 
-            case LOOP_SHOOT:
+            case GAMELOOP_PLAYER_SHOT:
                 // Schusslogik
                 settarget();
                 // Schussnachricht senden
@@ -425,9 +425,9 @@ int main(void)
                 sprintf(hitmsg, "BOOM%d%d\n", targetx, targety);
                 send_msg(hitmsg);
                 clearbuffer();
-                currentLoop = LOOP_EV_SHOT;
+                currentGAMELOOP = GAMELOOP_EVALUATE_SHOT;
                 break;
-            case LOOP_GETSHOT:
+            case GAMELOOP_RECIVE_SHOT:
                 // Schuss empfangen
                 get_msg();
                 if (strncmp(rxbuffer, "BOOM", 4) == 0 && strlen(rxbuffer) >= 6)
@@ -443,35 +443,35 @@ int main(void)
                         send_msg("W\n");
                     }
                     clearbuffer();
-                    currentLoop = LOOP_DECIDE_STATE;
+                    currentGAMELOOP = GAMELOOP_DECIDE;
                 }
                 break;
-            case LOOP_EV_SHOT:
+            case GAMELOOP_EVALUATE_SHOT:
                 // Schuss evaluieren
                 get_msg();
                 if (strncmp(rxbuffer, "T", 1) == 0)
                 {
                     // Treffer
                     clearbuffer();
-                    currentLoop = LOOP_DECIDE_STATE;
+                    currentGAMELOOP = GAMELOOP_DECIDE;
                 }
                 else if (strncmp(rxbuffer, "W", 1) == 0)
                 {
                     // Wasser (verfehlt)
                     clearbuffer();
-                    currentLoop = LOOP_DECIDE_STATE;
+                    currentGAMELOOP = GAMELOOP_DECIDE;
                 }
                 else if (strncmp(rxbuffer, "S", 1) == 0)
                 {
                     // Spielfeldnachricht
                     clearbuffer();
-                    currentState = GAMEEND;
+                    currentState = END_OF_GAME;
                 }
                 break;
             }
             break;
 
-        case GAMEEND:
+        case END_OF_GAME:
 
 
             for (int i = 0; i < 10; i++)
@@ -487,7 +487,7 @@ int main(void)
                 send_msg("\n");
             }
 
-            currentState = INIT;
+            currentState = INITIALIZE;
             break;
         }
     }
